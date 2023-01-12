@@ -157,7 +157,7 @@ def logout():
     logout_user()
     return redirect(url_for('get_all_posts'))
 
-
+#
 @app.route("/post/<int:post_id>", methods=['Get', 'POST'])
 def show_post(post_id):
     form = CommentForm()
