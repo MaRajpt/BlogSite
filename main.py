@@ -96,7 +96,9 @@ class Comment(db.Model):
 
 @app.route('/')
 def get_all_posts():
-    posts = db.session.execute(db.select(BlogPost).order_by(BlogPost.id)).scalars()
+    posts = db.session.execute(db.select(User).order_by(User.id)).scalars()
+    for i in posts:
+        print(i.id)
     return render_template("index.html", all_posts=posts)
 
 
