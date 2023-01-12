@@ -37,7 +37,7 @@ gravatar = Gravatar(app,
 
 @login_manager.user_loader
 def load_user(user_id):
-    return db.get_or_404(User, user_id)
+    return User.query.get(int(user_id))
 
 
 def admin_only(f):
@@ -96,9 +96,7 @@ class Comment(db.Model):
 
 @app.route('/')
 def get_all_posts():
-    posts = db.session.execute(db.select(User).order_by(User.id)).scalars()
-    for i in posts:
-        print(i.id)
+    posts = BlogPost.query.all()
     return render_template("index.html", all_posts=posts)
 
 
@@ -107,21 +105,21 @@ def register():
     form = RegisterForm()
     if request.method == 'POST':
         data = request.form
-        try:
-            db.one_or_404(db.select(User).filter_by(email=data['email']))
-            flash('Sorry email address already exist!')
-            return redirect(url_for('register'))
-        except:
+        if User.query.filter_by(email=form.email.data).first():
+            print(User.query.filter_by(email=form.email.data).first())
+            # User already exists
+            flash("You've already signed up with that email, log in instead!")
+            return redirect(url_for('login'))
 
-            secure_password = werkzeug.security.generate_password_hash(data['password'], method='pbkdf2:sha256',
+        secure_password = werkzeug.security.generate_password_hash(data['password'], method='pbkdf2:sha256',
                                                                        salt_length=8)
-            user = User(name=data['name'],
+        user = User(name=data['name'],
                         email=data['email'],
                         password=secure_password)
-            with app.app_context():
+        with app.app_context():
                 db.session.add(user)
                 db.session.commit()
-            return redirect(url_for('get_all_posts'))
+        return redirect(url_for('get_all_posts'))
 
     return render_template("register.html", form=form,  current_user=current_user)
 
@@ -134,20 +132,17 @@ def login():
         data = request.form
         user_email = data['email']
         user_password = data['password']
-        try:
 
-            user = db.one_or_404(db.select(User).filter_by(email=user_email))
-
-        except:
-            # Handle the error - e.g. flash a message to the user
-            flash('Email incorrect, please try again.')
+        user = User.query.filter_by(email=user_email).first()
+        # Email doesn't exist or password incorrect.
+        if not user:
+            flash("That email does not exist, please try again.")
             return redirect(url_for('login'))
-        if not check_password_hash(user.password, user_password):
+        elif not check_password_hash(user.password, user_password):
             flash('Password incorrect, please try again.')
             return redirect(url_for('login'))
         else:
             login_user(user)
-
             return redirect(url_for('get_all_posts', current_user=current_user))
 
     return render_template("login.html", form=form, current_user=current_user)
@@ -211,7 +206,7 @@ def add_new_post():
 @app.route("/edit-post/<int:post_id>", methods=['GET', 'POST'])
 @admin_only
 def edit_post(post_id):
-    post = db.get_or_404(BlogPost, post_id)
+    post = BlogPost.query.get(post_id)
     edit_form = CreatePostForm(
         title=post.title,
         subtitle=post.subtitle,
@@ -232,7 +227,7 @@ def edit_post(post_id):
 
 @app.route("/delete/<int:post_id>")
 def delete_post(post_id):
-    post_to_delete = db.get_or_404(BlogPost, post_id)
+    post_to_delete = BlogPost.query.get(post_id)
     db.session.delete(post_to_delete)
     db.session.commit()
     return redirect(url_for('get_all_posts'))
